@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 const GROUPS = ["Sunshine Squad ☀️", "Star Seekers ⭐", "Wave Riders 🌊", "Rainbow Crew 🌈", "Thunder Bolts ⚡"];
 const SYNC_INTERVAL = 12000;
 
-const fmt = (iso) => {
+const fmt = (iso: string | null) => {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
