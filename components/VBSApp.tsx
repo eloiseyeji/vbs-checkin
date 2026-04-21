@@ -84,7 +84,7 @@ const printAttendance = (children, groupFilter) => {
           </tr>
         </thead>
         <tbody>
-          ${kids.map((k, i) => `
+          ${(kids as any[]).map((k, i) => `
             <tr class="${k.notes ? 'has-note' : ''}">
               <td style="text-align:center;color:#94a3b8">${i + 1}</td>
               <td><strong>${k.name}</strong></td>
