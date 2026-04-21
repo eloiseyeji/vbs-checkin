@@ -230,7 +230,27 @@ export default function VBSApp() {
     showToast("🔄 Attendance reset");
     setSaving(false);
   };
-
+const resetAll = () => {
+  setConfirm({
+    title: "Reset ALL attendance?",
+    sub: "This will mark every child as 'Not Arrived' and clear all check-in/out times. Use this at the start of each new day.",
+    danger: true,
+    action: async () => {
+      setSaving(true);
+      await supabase.from("children").update({
+        status: "not-arrived",
+        check_in_time: null,
+        check_out_time: null,
+        check_in_by: null,
+        check_out_by: null,
+      }).neq("id", "");
+      await loadData(true);
+      showToast("🌅 All attendance reset for new day!");
+      setSaving(false);
+      setConfirm(null);
+    }
+  });
+};
   const deleteChild = (id) => {
     const child = children.find(c => c.id === id);
     setConfirm({
@@ -371,7 +391,13 @@ export default function VBSApp() {
       <main style={{padding:"28px 20px",maxWidth:1100,margin:"0 auto"}}>
 
         {view === "dashboard" && (
-          <div style={{animation:"slideUp .3s ease"}}>
+          <div style={{animation:"slideUp .3s ease"}}><div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+  <button className="btn" onClick={resetAll}
+    style={{background:"#fff",border:"2px solid #e2e8f0",borderRadius:12,padding:"10px 18px",fontWeight:800,fontSize:13,color:"#64748b",display:"flex",alignItems:"center",gap:7,transition:"all .15s"}}>
+    🌅 Reset All for New Day
+  </button>
+</div>
+
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:14,marginBottom:28}}>
               {[
                 {label:"Total Enrolled",value:stats.total,color:"#6366f1",bg:"#eef2ff",emoji:"📋"},
