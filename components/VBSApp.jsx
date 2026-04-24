@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { printAttendance } from "../lib/print";
 
 const GROUPS = ["Sunshine Squad ☀️", "Star Seekers ⭐", "Wave Riders 🌊", "Rainbow Crew 🌈", "Thunder Bolts ⚡"];
 const SYNC_INTERVAL = 12000;
@@ -67,6 +66,84 @@ const Icon = ({ name, size = 18, color = "currentColor" }) => {
   );
 };
 
+const printAttendance = (children, groupFilter) => {
+  const today = fmtDate();
+  const list = groupFilter === "All" ? children : children.filter(c => c.group === groupFilter);
+  const byGroup = {};
+  list.forEach(c => { if (!byGroup[c.group]) byGroup[c.group] = []; byGroup[c.group].push(c); });
+
+  const groupHTML = Object.entries(byGroup).map(([group, kids]) => `
+    <div class="group-block">
+      <div class="group-title">${group}</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th>Child Name</th><th>Guardian</th><th>Phone</th><th>Notes</th>
+            <th style="width:80px">Check-In</th><th style="width:80px">Check-Out</th><th style="width:70px">Initials</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${kids.map((k, i) => `
+            <tr class="${k.notes ? 'has-note' : ''}">
+              <td style="text-align:center;color:#94a3b8">${i + 1}</td>
+              <td><strong>${k.name}</strong></td>
+              <td>${k.guardian || "—"}</td><td>${k.phone || "—"}</td>
+              <td style="color:#c2410c;font-size:11px">${k.notes ? "⚠️ " + k.notes : ""}</td>
+              <td style="text-align:center">${k.checkInTime ? fmt(k.checkInTime) : '<span class="blank-box"></span>'}</td>
+              <td style="text-align:center">${k.checkOutTime ? fmt(k.checkOutTime) : '<span class="blank-box"></span>'}</td>
+              <td></td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  <title>VBS Attendance — ${today}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Nunito',sans-serif;font-size:12px;color:#1e293b;padding:24px 32px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6366f1;padding-bottom:12px;margin-bottom:20px}
+    .header-left h1{font-size:24px;font-weight:900;color:#6366f1}
+    .header-left p{color:#64748b;margin-top:2px;font-size:12px}
+    .header-right{text-align:right;font-size:12px;color:#475569}
+    .header-right strong{font-size:14px;color:#1e293b;display:block}
+    .stats-row{display:flex;gap:12px;margin-bottom:20px}
+    .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;flex:1;text-align:center}
+    .stat .num{font-size:22px;font-weight:900;color:#6366f1}
+    .stat .lbl{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+    .group-block{margin-bottom:24px;break-inside:avoid}
+    .group-title{background:#6366f1;color:white;font-weight:800;font-size:13px;padding:7px 14px;border-radius:8px 8px 0 0}
+    table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:none}
+    th{background:#f1f5f9;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:7px 10px;text-align:left;border-bottom:1px solid #e2e8f0}
+    td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr.has-note{background:#fffbeb}
+    .blank-box{display:inline-block;width:48px;height:16px;border:1px solid #cbd5e1;border-radius:3px}
+    .footer{margin-top:28px;border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}
+    .sig-line{display:inline-block;width:160px;border-bottom:1px solid #cbd5e1;margin-left:8px}
+  </style></head><body>
+  <div class="header">
+    <div class="header-left"><h1>☀️ VBS Check-In · Attendance Sheet</h1><p>Vacation Bible School 2026</p></div>
+    <div class="header-right"><strong>${today}</strong>Group: ${groupFilter === "All" ? "All Groups" : groupFilter}</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="num">${list.length}</div><div class="lbl">Total</div></div>
+    <div class="stat"><div class="num" style="color:#16a34a">${list.filter(c=>c.status==="checked-in").length}</div><div class="lbl">Checked In</div></div>
+    <div class="stat"><div class="num" style="color:#ea580c">${list.filter(c=>c.status==="checked-out").length}</div><div class="lbl">Checked Out</div></div>
+    <div class="stat"><div class="num" style="color:#0284c7">${list.filter(c=>c.status==="not-arrived").length}</div><div class="lbl">Not Arrived</div></div>
+  </div>
+  ${groupHTML}
+  <div class="footer">
+    <div>Teacher on duty:<span class="sig-line"></span></div>
+    <div>Signature:<span class="sig-line"></span></div>
+    <div>Printed: ${new Date().toLocaleString()}</div>
+  </div>
+</body></html>`;
+
+  const win = window.open("", "_blank");
+  win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 600);
@@ -144,16 +221,18 @@ export default function VBSApp() {
     });
   };
 
-  const resetAll = () => {
-    setConfirm({
-      title: "Reset ALL attendance?",
-      sub: "Clears all check-in/out times. Use this at the start of each new VBS day.",
-      danger: true,
-      action: async () => {
-        setSaving(true);
-        await supabase.from("children").update({ status: "not-arrived", check_in_time: null, check_out_time: null, check_in_by: null, check_out_by: null }).neq("id", "");
-        await loadData(true);
-        showToast("🌅 All attendance reset for new day!");
+  const resetChild = async (id) => {
+    setSaving(true);
+    await supabase.from("children").update({
+      status: "not-arrived", check_in_time: null, check_out_time: null, check_in_by: null, check_out_by: null
+    }).eq("id", id);
+    await loadData(true);
+    showToast("🔄 Attendance reset");
+    setSaving(false);
+  };
+
+  const deleteChild = (id) => {
+    const child = children.find(c => c.id === id);
     setConfirm({
       title: `Remove ${child.name}?`,
       sub: "This will permanently remove them from the roster.",
@@ -292,13 +371,7 @@ export default function VBSApp() {
       <main style={{padding:"28px 20px",maxWidth:1100,margin:"0 auto"}}>
 
         {view === "dashboard" && (
-          <div style={{animation:"slideUp .3s ease"}}><div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
-  <button className="btn" onClick={resetAll}
-    style={{background:"#fff",border:"2px solid #e2e8f0",borderRadius:12,padding:"10px 18px",fontWeight:800,fontSize:13,color:"#64748b",display:"flex",alignItems:"center",gap:7,transition:"all .15s"}}>
-    🌅 Reset All for New Day
-  </button>
-</div>
-
+          <div style={{animation:"slideUp .3s ease"}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:14,marginBottom:28}}>
               {[
                 {label:"Total Enrolled",value:stats.total,color:"#6366f1",bg:"#eef2ff",emoji:"📋"},
@@ -582,5 +655,3 @@ export default function VBSApp() {
     </div>
   );
 }
-// vbs
- 
