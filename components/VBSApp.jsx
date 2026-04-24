@@ -221,38 +221,16 @@ export default function VBSApp() {
     });
   };
 
-  const resetChild = async (id) => {
-    setSaving(true);
-    await supabase.from("children").update({
-      status: "not-arrived", check_in_time: null, check_out_time: null, check_in_by: null, check_out_by: null
-    }).eq("id", id);
-    await loadData(true);
-    showToast("🔄 Attendance reset");
-    setSaving(false);
-  };
-const resetAll = () => {
-  setConfirm({
-    title: "Reset ALL attendance?",
-    sub: "This will mark every child as 'Not Arrived' and clear all check-in/out times. Use this at the start of each new day.",
-    danger: true,
-    action: async () => {
-      setSaving(true);
-      await supabase.from("children").update({
-        status: "not-arrived",
-        check_in_time: null,
-        check_out_time: null,
-        check_in_by: null,
-        check_out_by: null,
-      }).neq("id", "");
-      await loadData(true);
-      showToast("🌅 All attendance reset for new day!");
-      setSaving(false);
-      setConfirm(null);
-    }
-  });
-};
-  const deleteChild = (id) => {
-    const child = children.find(c => c.id === id);
+  const resetAll = () => {
+    setConfirm({
+      title: "Reset ALL attendance?",
+      sub: "Clears all check-in/out times. Use this at the start of each new VBS day.",
+      danger: true,
+      action: async () => {
+        setSaving(true);
+        await supabase.from("children").update({ status: "not-arrived", check_in_time: null, check_out_time: null, check_in_by: null, check_out_by: null }).neq("id", "");
+        await loadData(true);
+        showToast("🌅 All attendance reset for new day!");
     setConfirm({
       title: `Remove ${child.name}?`,
       sub: "This will permanently remove them from the roster.",
