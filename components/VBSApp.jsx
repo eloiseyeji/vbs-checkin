@@ -512,47 +512,93 @@ export default function VBSApp() {
           </div>
         )}
 
-        {view === "add" && (
-          <div style={{animation:"slideUp .3s ease",maxWidth:520}}>
-            <h2 style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1e293b",marginBottom:24}}>{editId ? "✏️ Edit Child" : "➕ Add New Child"}</h2>
-            <div style={{background:"#fff",borderRadius:20,padding:28,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}>
-              {[
-                {label:"Child's Full Name *",key:"name",placeholder:"First Last",type:"text"},
-                {label:"Guardian Name",key:"guardian",placeholder:"Parent / caregiver name",type:"text"},
-                {label:"Guardian Phone",key:"phone",placeholder:"404-555-0000",type:"tel"},
-              ].map(f => (
-                <div key={f.key} style={{marginBottom:18}}>
-                  <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>{f.label}</label>
-                  <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc"}}
-                    type={f.type} placeholder={f.placeholder} value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}/>
-                </div>
-              ))}
-              <div style={{marginBottom:18}}>
-                <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>Group</label>
-                <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc"}}
-                  value={form.group} onChange={e=>setForm(p=>({...p,group:e.target.value}))}>
-                  {GROUPS.map(g=><option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-              <div style={{marginBottom:24}}>
-                <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>Medical / Special Notes</label>
-                <textarea style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc",height:80,resize:"vertical"}}
-                  placeholder="Allergies, medication, special needs…"
-                  value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/>
-              </div>
-              <div style={{display:"flex",gap:10}}>
-                <button className="btn" style={{flex:1,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontWeight:800,fontSize:14,transition:"all .15s"}}
-                  onClick={submitForm} disabled={saving}>
-                  {saving ? "Saving…" : editId ? "Save Changes" : "Add to Roster"}
-                </button>
-                <button style={{background:"#f1f5f9",color:"#475569",border:"2px solid #e2e8f0",borderRadius:12,padding:"13px 20px",fontWeight:800,fontSize:14,cursor:"pointer"}}
-                  onClick={()=>{setView("roster");setEditId(null);setForm({name:"",group:GROUPS[0],guardian:"",phone:"",notes:""});}}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+       {view === "add" && (
+  <div style={{animation:"slideUp .3s ease",maxWidth:520}}>
+    <h2 style={{fontFamily:"'Fredoka One',cursive",fontSize:24,color:"#1e293b",marginBottom:24}}>{editId ? "✏️ Edit Child" : "➕ Add New Child"}</h2>
+
+    {!editId && (
+      <div style={{background:"#f0fdf4",borderRadius:16,padding:20,marginBottom:20,border:"2px dashed #86efac"}}>
+        <div style={{fontWeight:800,fontSize:14,color:"#15803d",marginBottom:8}}>📊 Bulk Upload from Excel</div>
+        <p style={{fontSize:12,color:"#166534",marginBottom:12,lineHeight:1.6}}>Upload your Excel file with columns: Child's Full Name, Guardian Name, Guardian Phone, Group, Medical / Special Notes</p>
+        <input type="file" accept=".xlsx,.xls,.csv"
+          style={{display:"none"}} id="excel-upload"
+          onChange={async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs");
+            const data = await file.arrayBuffer();
+            const wb = XLSX.read(data);
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws);
+            setSaving(true);
+            let count = 0;
+            for (const row of rows) {
+              const name = row["Child's Full Name"] || row["Name"] || row["name"] || "";
+              if (!name.trim()) continue;
+              const newChild = {
+                id: Date.now().toString() + Math.random().toString(36).slice(2),
+                name: name.trim(),
+                group_name: row["Group"] || row["group"] || GROUPS[0],
+                guardian: row["Guardian Name"] || row["Guardian"] || "",
+                phone: String(row["Guardian Phone"] || row["Phone"] || ""),
+                notes: row["Medical / Special Notes"] || row["Notes"] || "",
+                status: "not-arrived",
+                check_in_time: null, check_out_time: null,
+                check_in_by: null, check_out_by: null,
+              };
+              await supabase.from("children").insert(newChild);
+              count++;
+            }
+            await loadData(true);
+            showToast("🎉 Imported " + count + " children!");
+            setSaving(false);
+            e.target.value = "";
+          }}
+        />
+        <label htmlFor="excel-upload" style={{display:"inline-block",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",borderRadius:10,padding:"10px 20px",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+          {saving ? "Importing…" : "📂 Choose Excel File"}
+        </label>
+      </div>
+    )}
+
+    <div style={{background:"#fff",borderRadius:20,padding:28,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}>
+      {[
+        {label:"Child's Full Name *",key:"name",placeholder:"First Last",type:"text"},
+        {label:"Guardian Name",key:"guardian",placeholder:"Parent / caregiver name",type:"text"},
+        {label:"Guardian Phone",key:"phone",placeholder:"404-555-0000",type:"tel"},
+      ].map(f => (
+        <div key={f.key} style={{marginBottom:18}}>
+          <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>{f.label}</label>
+          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc"}}
+            type={f.type} placeholder={f.placeholder} value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}/>
+        </div>
+      ))}
+      <div style={{marginBottom:18}}>
+        <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>Group</label>
+        <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc"}}
+          value={form.group} onChange={e=>setForm(p=>({...p,group:e.target.value}))}>
+          {GROUPS.map(g=><option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <div style={{marginBottom:24}}>
+        <label style={{display:"block",fontWeight:800,fontSize:13,color:"#374151",marginBottom:6}}>Medical / Special Notes</label>
+        <textarea style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"2px solid #e2e8f0",fontSize:14,color:"#1e293b",background:"#f8fafc",height:80,resize:"vertical"}}
+          placeholder="Allergies, medication, special needs…"
+          value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <button className="btn" style={{flex:1,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontWeight:800,fontSize:14,transition:"all .15s"}}
+          onClick={submitForm} disabled={saving}>
+          {saving ? "Saving…" : editId ? "Save Changes" : "Add to Roster"}
+        </button>
+        <button style={{background:"#f1f5f9",color:"#475569",border:"2px solid #e2e8f0",borderRadius:12,padding:"13px 20px",fontWeight:800,fontSize:14,cursor:"pointer"}}
+          onClick={()=>{setView("roster");setEditId(null);setForm({name:"",group:GROUPS[0],guardian:"",phone:"",notes:""});}}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </main>
 
       {toast && (
